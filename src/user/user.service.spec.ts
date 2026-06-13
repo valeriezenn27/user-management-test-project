@@ -18,7 +18,7 @@ describe('UserService', () => {
   });
 
   it('should create a user', async () => {
-    const user = new User('1', 'Val Zenn', 'val.zenn@email.com');
+    const user = new User('1', 'John Doe', 'john.doe@example.com');
     const createdUser = await userService.create(user);
     expect(createdUser).toEqual(user);
   });
@@ -27,14 +27,14 @@ describe('UserService', () => {
     it('should return all users', async () => {
       const users = await userService.findAll();
       expect(users).toHaveLength(1);
-      expect(users[0]).toEqual(new User('1', 'Val Zenn', 'val.zenn@email.com'));
+      expect(users[0]).toEqual(new User('1', 'John Doe', 'john.doe@example.com'));
     });
   });
 
   describe('findOne', () => {
     it('should return a user with the given id', async () => {
       const user = await userService.findOne('1');
-      expect(user).toEqual(new User('1', 'Val Zenn', 'val.zenn@email.com'));
+      expect(user).toEqual(new User('1', 'John Doe', 'john.doe@example.com'));
     });
 
     it('should return undefined if no user is found', async () => {
@@ -45,7 +45,7 @@ describe('UserService', () => {
 
   describe('update', () => {
     it('should update a user with the given id', async () => {
-      const updatedUser = new User('1', 'Val Z', 'val.z@email.com');
+      const updatedUser = new User('1', 'Jane Doe', 'jane.doe@example.com');
       const user = await userService.update('1', updatedUser);
       expect(user).toEqual(updatedUser);
 
@@ -54,7 +54,7 @@ describe('UserService', () => {
     });
 
     it('should return undefined if no user is found', async () => {
-      const updatedUser = new User('2', 'Nix Ber', 'nix.ber@example.com');
+      const updatedUser = new User('2', 'Bob Smith', 'bob.smith@example.com');
       const user = await userService.update('2', updatedUser);
       expect(user).toBeUndefined();
     });
@@ -67,9 +67,9 @@ describe('UserService', () => {
       expect(users).toHaveLength(0);
     });
 
-    it('should return undefined if no user is found', async () => {
+    it('should return false if no user is found', async () => {
       const user = await userService.delete('2');
-      expect(user).toBeUndefined();
+      expect(user).toBe(false);
     });
   });
 });

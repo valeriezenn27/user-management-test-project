@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>User Management</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f5f7fa;
+      color: #333;
+      padding: 2rem;
+    }
+
+    h1 { font-size: 1.6rem; margin-bottom: 1.5rem; color: #1a1a2e; }
+
+    .card {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .card h2 { font-size: 1rem; margin-bottom: 1rem; color: #555; }
+
+    .form-row { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+
+    input[type="text"], input[type="email"] {
+      flex: 1;
+      min-width: 160px;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input:focus { border-color: #4f6ef7; }
+
+    button {
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: opacity 0.15s;
+    }
+    button:hover { opacity: 0.85; }
+
+    .btn-primary { background: #4f6ef7; color: #fff; }
+    .btn-danger  { background: #e74c3c; color: #fff; padding: 0.3rem 0.7rem; }
+    .btn-edit    { background: #f0a500; color: #fff; padding: 0.3rem 0.7rem; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th, td { text-align: left; padding: 0.65rem 0.75rem; }
+    th { background: #f0f2f8; color: #555; font-weight: 600; border-bottom: 2px solid #e0e4f0; }
+    tr:not(:last-child) td { border-bottom: 1px solid #f0f2f8; }
+    tr:hover td { background: #fafbff; }
+
+    .actions { display: flex; gap: 0.4rem; }
+
+    #toast {
+      position: fixed; bottom: 1.5rem; right: 1.5rem;
+      background: #333; color: #fff;
+      padding: 0.6rem 1.1rem;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+    }
+    #toast.show { opacity: 1; }
+
+    #empty-row td { color: #aaa; text-align: center; padding: 1.5rem; }
+
+    .modal-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.35);
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: #fff;
+      border-radius: 10px;
+      padding: 1.5rem;
+      width: 340px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    }
+    .modal h2 { font-size: 1rem; margin-bottom: 1rem; }
+    .modal input { width: 100%; margin-bottom: 0.75rem; }
+    .modal-actions { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 0.5rem; }
+    .btn-cancel { background: #eee; color: #555; }
+  </style>
+</head>
+<body>
+
+  <h1>User Management</h1>
+
+  <div class="card">
+    <h2>Add New User</h2>
+    <div class="form-row">
+      <input id="new-name"  type="text"  placeholder="Full name" />
+      <input id="new-email" type="email" placeholder="Email address" />
+      <button class="btn-primary" onclick="createUser()">Add User</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Users</h2>
+    <table>
+      <thead>
+        <tr><th>#</th><th>Name</th><th>Email</th><th>Actions</th></tr>
+      </thead>
+      <tbody id="user-table-body">
+        <tr id="empty-row"><td colspan="4">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="modal-overlay" id="edit-modal">
+    <div class="modal">
+      <h2>Edit User</h2>
+      <input id="edit-name"  type="text"  placeholder="Full name" />
+      <input id="edit-email" type="email" placeholder="Email address" />
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+        <button class="btn-primary" onclick="saveEdit()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+  <script>
+    const API = '/user';
+    let editingId = null;
+
+    async function loadUsers() {
+      const res = await fetch(API);
+      const users = await res.json();
+      const tbody = document.getElementById('user-table-body');
+      tbody.innerHTML = '';
+
+      if (!users.length) {
+        tbody.innerHTML = '<tr id="empty-row"><td colspan="4">No users yet. Add one above.</td></tr>';
+        return;
+      }
+
+      users.forEach(u => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${u.id}</td>
+          <td>${escape(u.name)}</td>
+          <td>${escape(u.email)}</td>
+          <td class="actions">
+            <button class="btn-edit"   onclick="openEdit('${u.id}', '${escape(u.name)}', '${escape(u.email)}')">Edit</button>
+            <button class="btn-danger" onclick="deleteUser('${u.id}')">Delete</button>
+          </td>`;
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function createUser() {
+      const name  = document.getElementById('new-name').value.trim();
+      const email = document.getElementById('new-email').value.trim();
+      if (!name || !email) return toast('Name and email are required.');
+
+      const res = await fetch(API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email }),
+      });
+
+      if (res.status === 201) {
+        document.getElementById('new-name').value = '';
+        document.getElementById('new-email').value = '';
+        toast('User created.');
+        loadUsers();
+      } else {
+        const err = await res.json();
+        toast(Array.isArray(err.message) ? err.message.join(', ') : err.message);
+      }
+    }
+
+    async function deleteUser(id) {
+      if (!confirm('Delete this user?')) return;
+      const res = await fetch(`${API}/${id}`, { method: 'DELETE' });
+      if (res.status === 204) { toast('User deleted.'); loadUsers(); }
+      else toast('Failed to delete user.');
+    }
+
+    function openEdit(id, name, email) {
+      editingId = id;
+      document.getElementById('edit-name').value  = name;
+      document.getElementById('edit-email').value = email;
+      document.getElementById('edit-modal').classList.add('open');
+    }
+
+    function closeModal() {
+      editingId = null;
+      document.getElementById('edit-modal').classList.remove('open');
+    }
+
+    async function saveEdit() {
+      const name  = document.getElementById('edit-name').value.trim();
+      const email = document.getElementById('edit-email').value.trim();
+      if (!name || !email) return toast('Name and email are required.');
+
+      const res = await fetch(`${API}/${editingId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email }),
+      });
+
+      if (res.ok) { closeModal(); toast('User updated.'); loadUsers(); }
+      else toast('Failed to update user.');
+    }
+
+    function escape(str) {
+      return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    let toastTimer;
+    function toast(msg) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
+    }
+
+    loadUsers();
+  </script>
+</body>
+</html>

@@ -79,6 +79,19 @@ web_modules/
 .env.production.local
 .env.local
 
+# Runtime database file
+db.json
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
 # parcel-bundler cache (https://parceljs.org/)
 .cache
 .parcel-cache

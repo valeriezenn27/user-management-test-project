@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { User } from '../models/user.model';
 import { IUserService } from './user.interface';
+import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 import low from 'lowdb';
 import FileSync from 'lowdb/adapters/FileSync';
 
@@ -24,27 +26,27 @@ export class UserService implements IUserService {
 		return user;
 	}
 
-	createUser(user: User): User {
+	createUser(dto: CreateUserDto): User {
 		const maxId = db.get('users').map('id').max().value() || 0;
-		const newId = Number(maxId) + 1; // Parse maxId as a number before adding 1
-		const newUser = { ...user, id: newId.toString() };
+		const newId = Number(maxId) + 1;
+		const newUser: User = { ...dto, id: newId.toString() };
 		db.get('users').push(newUser).write();
 		return newUser;
 	}
 
-	async update(id: string, user: User): Promise<User | undefined> {
-		const index = (await this.findAll()).findIndex(u => u.id === id);
-		if (index === -1) {
-			return undefined; // Return undefined if no user is found
+	async update(id: string, dto: UpdateUserDto): Promise<User | undefined> {
+		const existing = await this.findOne(id);
+		if (!existing) {
+			return undefined;
 		}
-		const updatedUser = db.get('users').find({ id }).assign(user).write();
+		const updatedUser = db.get('users').find({ id }).assign(dto).write();
 		return updatedUser;
 	}
 
 	async delete(id: string): Promise<boolean> {
-		const index = (await this.findAll()).findIndex(u => u.id === id);
-		if (index === -1) {
-			return undefined; // Return undefined if no user is found
+		const existing = await this.findOne(id);
+		if (!existing) {
+			return false;
 		}
 		const deleted = db.get('users').remove({ id }).write();
 		return deleted.length > 0;
